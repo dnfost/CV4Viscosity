@@ -1,10 +1,7 @@
-# Second Project: Measuring the time taken for a ball to fall.
 # Source code from PyImageSearch, used without permission.
 # Link to source code: https://www.pyimagesearch.com/2015/09/14/ball-tracking-with-opencv/
 
 # import the necessary packages
-
-# Third Project Again: Selecting a Video.
 
 from tkinter import *
 from tkvideo import tkvideo
@@ -37,14 +34,61 @@ def playVid(filename):
 
 root.mainloop()
 
-frame_rate = 30 # frames per second
-ball_radius = 0.029 # meters
+stem = Tk()
+stem.title("Input Frame Rate")
 
-# define the lower and upper boundaries of the "red" ball in the HSV color space
-# note that these values are in HSV, not BGR
-# these values can be found iteratively through experimentation
-redLower = (40, 20, 0)
-redUpper = (400, 480, 100)
+e = Entry(stem, width=50)
+e.insert(END, '30') # This is a default value
+e.pack()
+
+myButton = Button(stem, text="Enter a camera frame rate in fps.", command=lambda: getFPS(e.get()))
+myButton.pack()
+
+def getFPS(fps):
+
+    global frame_rate
+    frame_rate = float(fps)
+
+stem.mainloop()
+
+branch = Tk()
+branch.title("Input Ball Radius")
+
+e = Entry(branch, width=50)
+e.insert(END, '0.029') # This is a default value
+e.pack()
+
+myButton = Button(branch, text="Enter a ball radius in m.", command=lambda: getRadius(e.get()))
+myButton.pack()
+
+def getRadius(radius):
+
+    global ball_radius
+    ball_radius = float(radius)
+
+branch.mainloop()
+
+twig = Tk()
+twig.title("Input HSV Colour Lower and Upper Bounds")
+
+e = Entry(twig, width=50)
+e.insert(END, '40,20,0,400,480,100') # This is a default value
+e.pack()
+
+myButton = Button(twig, text="Enter HSV colour bounds, separated by commas.", command=lambda: getHSV(e.get()))
+myButton.pack()
+
+# define the lower and upper boundaries of the ball in the HSV color space
+# note that these values are in HSV, not BGR, can be found iteratively through experimentation
+
+def getHSV(HSVs):
+
+    global colourLower, colourUpper
+    HSVs = HSVs.split(",")
+    colourLower = (float(HSVs[0]), float(HSVs[1]), float(HSVs[2]))
+    colourUpper = (float(HSVs[3]), float(HSVs[4]), float(HSVs[5]))
+
+twig.mainloop()
 
 vs = cv2.VideoCapture(filename_shortened)
 # allow the camera or video file to warm up
@@ -80,7 +124,7 @@ with open('center_coordinates.csv', 'w', newline='') as file:
 		hsv = cv2.cvtColor(blurred, cv2.COLOR_BGR2HSV) # convert video frame from BGR to HSV
 		# construct a mask for the color "red", then perform a series of dilations and erosions to remove any small
 		# blobs left in the mask
-		mask = cv2.inRange(hsv, redLower, redUpper)
+		mask = cv2.inRange(hsv, colourLower, colourUpper)
 		mask = cv2.erode(mask, None, iterations=2)
 		mask = cv2.dilate(mask, None, iterations=2)
 
