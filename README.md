@@ -9,7 +9,6 @@ The code for this can be found on my GitHub, @dnfost. https://github.com/dnfost/
 If one encounters any issues with this code, report it directly on GitHub, or reach out to me. <br/>
 <br/>
 **Breakdown.<br/>**
-If one encounters any issues with this code, report it directly on GitHub, or reach out to me. <br/>
 This is one of the more long-winded programs that I've written, so I'm writing a basic description of what each section of code does, to better the understanding of the reader. <br/>
 This program begins with some currently miscellaneous comments - feel free to ignore those, they have to do with how I actually wrote the program. Next however, are a series of import statements. Make sure that all necessary packages are installed on your system before attempting to run the program. <br/>
 <br/>
@@ -19,3 +18,10 @@ Upon pushing the button, the playVid function takes effect, so long as a valid v
 <br/>
 Next, parameters such as the camera frame rate measured in fps, the radius of the object measured in m (in this application we are using a ball, which is spherical), as well as the upper and lower bounds of the object's colour in HSV are prompted for the user to input. Default values are provided, but can be edited in the code, since it is assumed that there will not be much variation of camera specs, ball colour, or ball shape over the course of experimentation. Determining the appropriate bounds for the HSV colour space can be quite tedious, as it would necessitate the running of the entire code. Instead, provided as well is "COLOUR\_DEBUGGER.py", which can streamline the process of determining HSV bounds.<br/>
 <br/>
+The aforementioned video file name is then used as the input for the image-tracking part of the program. <br/>
+<br/>
+Then, a csv file is made (or opened if it already exists), as a spot for the coordinates of the center of the ball to be written to. Frame by frame, the video is edited to remove noise, and the resultant frame is analyzed for the input colours. If found, a contour is drawn to enclose the colours, and the coordinates of the center of the minimum enclosing circle is written to the csv file. <br/>
+<br/>
+Upon completion of writing to the csv file, the file is opened again, and the coordinates of the center are used to compute the displacement and velocity of the ball, after conversion from pixels to meters. These values (horizontal and vertical displacement, horizontal and vertical velocity) are plotted onto a single figure. <br/>
+<br/>
+Informed by the graphs, a user can input a selected time interval, over which the mean and best-fit velocities, along with their associated uncertainties will be computed.
