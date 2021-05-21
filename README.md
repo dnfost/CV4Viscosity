@@ -24,8 +24,8 @@ Upon completion of writing to the csv file, the file is opened again, and the co
 <br/>
 Informed by the graphs, a user can input a selected time interval, over which the mean and best-fit velocities, along with their associated uncertainties will be computed. <br/>
 <br/>
-**Contributor Information**
+**Contributor Information**<br/>
 Daniel Foster, Summer Research Intern at Flow Control and Experimental Turbulence Lab at the University of Toronto Institute for Aerospace Studies. d.foster@mail.utoronto.ca <br/>
 <br/>
-**Citation Information**
+**Citation Information**<br/>
 Rosebrock, A (2015) ball_tracking.py source code [Source Code]. https://www.pyimagesearch.com/2015/09/14/ball-tracking-with-opencv/
