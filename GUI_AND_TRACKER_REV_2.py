@@ -1,92 +1,99 @@
-# Source code from PyImageSearch, used without permission.
-# Link to source code: https://www.pyimagesearch.com/2015/09/14/ball-tracking-with-opencv/
-
 # import the necessary packages
-
 from tkinter import *
 from tkvideo import tkvideo
-
 import cv2
 import imutils
 import time
 import csv
 from matplotlib import pyplot as plt
+from math import log10, floor
+from decimal import Decimal
 
+# widget that takes in a video path for preview and analysis
 root = Tk()
 root.title("Video Selection and Preview")
 
+# get user input
 e = Entry(root, width=50)
 e.pack()
 
+# run the playVid function upon button press
 myButton = Button(root, text="Enter a video path.", command=lambda: playVid(e.get()))
 myButton.pack()
 
+# shorten the filename, play the video
 def playVid(filename):
-
 	global filename_shortened
 	filename_shortened = filename[filename.rfind("\\") + 1:]
 
 	my_label = Label(root)
 	my_label.pack()
 
-	player = tkvideo(filename, my_label, size=(720, 1080))
-	player.play()
-
 root.mainloop()
 
+# widget that takes in a frame rate
 stem = Tk()
 stem.title("Input Frame Rate")
 
+# provide a default frame rate to streamline the process
 e = Entry(stem, width=50)
 e.insert(END, '30') # This is a default value
 e.pack()
 
+# run the getFPS function upon button press
 myButton = Button(stem, text="Enter a camera frame rate in fps.", command=lambda: getFPS(e.get()))
 myButton.pack()
 
+# convert the input string to a float
 def getFPS(fps):
-
-    global frame_rate
-    frame_rate = float(fps)
+	global frame_rate
+	frame_rate = float(fps)
 
 stem.mainloop()
 
+# widget that takes in a ball radius
 branch = Tk()
 branch.title("Input Ball Radius")
 
+# provide a default ball radius to streamline the process
 e = Entry(branch, width=50)
-e.insert(END, '0.029') # This is a default value
+e.insert(END, '0.004745') # This is a default value
+ball_radius_uncertainty = 0.000005 # Check this
 e.pack()
 
+# run the function getRadius upon button press
 myButton = Button(branch, text="Enter a ball radius in m.", command=lambda: getRadius(e.get()))
 myButton.pack()
 
+# convert the input string to a float
 def getRadius(radius):
-
-    global ball_radius
-    ball_radius = float(radius)
+	global ball_radius
+	ball_radius = float(radius)
 
 branch.mainloop()
 
+# widget that takes in a lower bound and upper bound for the HSV colour space
 twig = Tk()
 twig.title("Input HSV Colour Lower and Upper Bounds")
 
+# provide a default HSV space to streamline the process
 e = Entry(twig, width=50)
-e.insert(END, '40,20,0,400,480,100') # This is a default value
+e.insert(END, '10,0,0,130,175,110') # This is a default value
 e.pack()
 
+# run the getHSV function upon button press
 myButton = Button(twig, text="Enter HSV colour bounds, separated by commas.", command=lambda: getHSV(e.get()))
 myButton.pack()
 
 # define the lower and upper boundaries of the ball in the HSV color space
 # note that these values are in HSV, not BGR, can be found iteratively through experimentation
 
+# split the input string
 def getHSV(HSVs):
-
-    global colourLower, colourUpper
-    HSVs = HSVs.split(",")
-    colourLower = (float(HSVs[0]), float(HSVs[1]), float(HSVs[2]))
-    colourUpper = (float(HSVs[3]), float(HSVs[4]), float(HSVs[5]))
+	global colourLower, colourUpper
+	HSVs = HSVs.split(",")
+	colourLower = (float(HSVs[0]), float(HSVs[1]), float(HSVs[2]))
+	colourUpper = (float(HSVs[3]), float(HSVs[4]), float(HSVs[5]))
 
 twig.mainloop()
 
@@ -104,6 +111,7 @@ with open('center_coordinates.csv', 'w', newline='') as file:
 
 	# initialize average radius calculations
 	radius_to_avg = 0
+	radius_max = 0
 
 	# keep looping
 	while True:
@@ -145,11 +153,13 @@ with open('center_coordinates.csv', 'w', newline='') as file:
 				cv2.circle(frame, (int(x), int(y)), int(radius),
 					(0, 255, 255), 2)
 				cv2.circle(frame, center, 5, (0, 0, 255), -1)
-
+				# compute the average radius to use in conversion from pixels to meters
 				radius_to_avg += radius
-
+			if radius_max < radius:
+				radius_max = radius
+			# insert relevant information to the csv
 			writer.writerow([index, center[0], center[1]])
-
+		# compute the average radius
 		radius_avg = radius_to_avg / index # assumes frames are continuous
 
 		# show the frame to our screen
@@ -164,7 +174,7 @@ vs.release()
 cv2.destroyAllWindows()
 
 # convert pixels to m
-meters_per_pixel = ball_radius / radius_avg
+meters_per_pixel = ball_radius / radius_max
 
 # read the csv file
 with open('center_coordinates.csv') as csv_file:
@@ -189,7 +199,7 @@ with open('center_coordinates.csv') as csv_file:
 	ds_vec_x = []
 	sub = 0
 
-	# compute differences for difference vector
+	# compute differences for difference vector, using central difference method
 	for element in time_vec:
 		if sub == 0 or sub == len(time_vec) - 1:
 			pass
@@ -208,32 +218,34 @@ with open('center_coordinates.csv') as csv_file:
 		vel_vec_y.append(ds_vec_y[i] / (1/frame_rate))
 		vel_vec_x.append(ds_vec_x[i] / (1/frame_rate))
 
+	fontsize = 10
+
 	# plot velocity against time
 	plot0 = plt.subplot(221)
 	plt.plot(time_vec[1:-1], vel_vec_x)
-	plt.title('Horizontal Velocity Against Time', fontsize=6)
-	plt.xlabel('Time [s]', fontsize=6)
-	plt.ylabel('Velocity [m/s]', fontsize=6)
-	plt.xticks(fontsize=6)
-	plt.yticks(fontsize=6)
+	plt.title('Horizontal Velocity Against Time', fontsize=fontsize)
+	plt.xlabel('Time [s]', fontsize=fontsize)
+	plt.ylabel('Velocity [m/s]', fontsize=fontsize)
+	plt.xticks(fontsize=fontsize)
+	plt.yticks(fontsize=fontsize)
 
 	# plot velocity against time
 	plot1 = plt.subplot(222)
 	plt.plot(time_vec[1:-1], vel_vec_y)
-	plt.title('Vertical Velocity Against Time', fontsize=6)
-	plt.xlabel('Time [s]', fontsize=6)
-	plt.ylabel('Velocity [m/s]', fontsize=6)
-	plt.xticks(fontsize=6)
-	plt.yticks(fontsize=6)
+	plt.title('Vertical Velocity Against Time', fontsize=fontsize)
+	plt.xlabel('Time [s]', fontsize=fontsize)
+	plt.ylabel('Velocity [m/s]', fontsize=fontsize)
+	plt.xticks(fontsize=fontsize)
+	plt.yticks(fontsize=fontsize)
 
 	# plot position against time
 	plot2 = plt.subplot(223)
 	plt.plot(time_vec, x_vec)
-	plt.title('Horizontal Position Against Time', fontsize=6)
-	plt.xlabel('Time [s]', fontsize=6)
-	plt.ylabel('Horizontal Position [m]', fontsize=6)
-	plt.xticks(fontsize=6)
-	plt.yticks(fontsize=6)
+	plt.title('Horizontal Position Against Time', fontsize=fontsize)
+	plt.xlabel('Time [s]', fontsize=fontsize)
+	plt.ylabel('Horizontal Position [m]', fontsize=fontsize)
+	plt.xticks(fontsize=fontsize)
+	plt.yticks(fontsize=fontsize)
 
 	# plot position against time, have to reflect about x axis due to opencv coordinate system
 	for j in range (0, len(y_vec)):
@@ -242,125 +254,126 @@ with open('center_coordinates.csv') as csv_file:
 	# plot position against time
 	plot2 = plt.subplot(224)
 	plt.plot(time_vec, y_vec)
-	plt.title('Vertical Position Against Time', fontsize=6)
-	plt.xlabel('Time [s]', fontsize=6)
-	plt.ylabel('Vertical Position [m]', fontsize=6)
-	plt.xticks(fontsize=6)
-	plt.yticks(fontsize=6)
+	plt.title('Vertical Position Against Time', fontsize=fontsize)
+	plt.xlabel('Time [s]', fontsize=fontsize)
+	plt.ylabel('Vertical Position [m]', fontsize=fontsize)
+	plt.xticks(fontsize=fontsize)
+	plt.yticks(fontsize=fontsize)
 
+	# display plots
 	plt.show()
 
+# widget that takes in time interval for analysis
 trunk = Tk()
 trunk.title("Snip Selection")
 
+# where user inputs interval for analysis
 e = Entry(trunk, width=50)
 e.pack()
 
-def buttonPush(interval):
-	# separate a string into two floats
+# separate a string into two floats
+def getTime(interval):
 	global lower, upper
 	lower = float(interval[:interval.rfind(",")])
 	upper = float(interval[interval.rfind(",") + 1:])
 	return(lower, upper)
 
+# run getTime upon button push
 myButton = Button(trunk,
 			text="Enter two points, separated by a comma, as an interval over which you would like to analyse.",
-			command=lambda: buttonPush(e.get()))
+			command=lambda: getTime(e.get()))
 myButton.pack()
 
 trunk.mainloop()
 
-def median(arr):
-
-    arr = arr.copy()
-
-    arr.sort()
-
-    if (len(arr) % 2 == 0): # In case there is no middle element, average the two inner-most elements
-
-        median = 0.5*arr[int(len(arr)/2-1)] + 0.5*arr[int(len(arr)/2)] # python list indexing starts at 0
-
-    else: # There is a middle element
-
-        median = arr[int(len(arr)*0.5 - 0.5)] # python list indexing starts at 0
-
-    return median
-
+# compute the mean element of an array
 def mean(arr):
+	mean = 0.0
+	# loop across all elements
+	for datum in arr:
+		mean += datum/len(arr)
 
-    mean = 0.0
+	return mean
 
-    for datum in arr:
-
-        mean += datum/len(arr) # pretty basic formula for calculating the average of a data set - it's the sum of the points divided by the number of points (the number of points being constant)
-
-    return mean
-
+# compute the variance of an array of data points
 def variance(arr):
+	avg = mean(arr)
+	variance = 0.0
+	# variance formula
+	for datum in arr:
+		variance += (datum - avg)**2/(len(arr)-1) # sum of squares (of differences between our average and our point(s))
 
-    avg = mean(arr)
+	return variance
 
-    variance = 0.0
-
-    for datum in arr:
-
-        variance += (datum - avg)**2/(len(arr)-1) # sum of squares (of differences between our average and our point(s))
-
-    return variance
-
+# compute the standard deviation of an array of data points
 def stdev(arr):
+	stdev = (variance(arr))**0.5 # variance is s^2, standard deviation is s
 
-    stdev = (variance(arr))**0.5 # variance is s^2, standard deviation is s
+	return stdev
 
-    return stdev
-
+# set arbitrarily large values of epsilon, so that a closest number is almost always found
 epsilon_l = 100000
 epsilon_u = 100000
 epsilon_index_l = 0
 epsilon_index_u = 0
 
+# find the index of the value that is closest to the input lower and upper time values
 epsilon_index_l = min(range(len(time_vec)), key=lambda i: abs(time_vec[i]-lower))
 epsilon_index_u = min(range(len(time_vec)), key=lambda i: abs(time_vec[i]-upper))
 
-cropped_vec = vel_vec_y[epsilon_index_l: epsilon_index_u + 1]
+# crop the velocity vector about the indices found above
+cropped_vel = vel_vec_y[epsilon_index_l: epsilon_index_u + 1]
 
-print("The mean vertical velocity is", mean(cropped_vec), "with a standard deviation of", stdev(cropped_vec))
+# sanity check for best fit
+print("The mean vertical velocity is", mean(cropped_vel), "with a standard deviation of", stdev(cropped_vel))
 
+# compute the best fit line of the vertical displacement (which is what we care about) over the specified time interval
 def lin_uncertainty(arr_y, arr_x): # this works
 
-    N = len(arr_y) # arr_y is of the same length as arr_y
+	N = len(arr_y) # arr_y is of the same length as arr_y
 
-    term_00 = 0 # first thing in the delta eqn (just the sums)
-    term_01 = 0 # second thing in the delta eqn (just the sums)
-    term_10 = 0 # product of x_i and y_i, gets summed
-    term_12 = 0 # sum of y vals
+	# initialize the necessary terms
+	term_00 = 0 # first thing in the delta eqn (just the sums)
+	term_01 = 0 # second thing in the delta eqn (just the sums)
+	term_10 = 0 # product of x_i and y_i, gets summed
+	term_12 = 0 # sum of y vals
 
-    for i in range(0, N):
+	# compute necessary terms
+	for i in range(0, N):
+		term_00 += arr_x[i] ** 2
+		term_01 += arr_x[i]
+		term_10 += arr_x[i] * arr_y[i]
+		term_11 = term_01 # they're the same thing, just for consistency
+		term_12 += arr_y[i]
 
-        term_00 += arr_x[i] ** 2
-        term_01 += arr_x[i]
-        term_10 += arr_x[i] * arr_y[i]
-        term_11 = term_01 # they're the same thing, just for consistency
-        term_12 += arr_y[i]
+	# more miscellaneous math
+	delta = N * term_00 - term_01 ** 2
 
-    delta = N * term_00 - term_01 ** 2
+	# slope and intercept estimates
+	m = (N * term_10 - term_11 * term_12)/delta
+	b = (term_12 - m * term_01)/N
 
-    m = (N * term_10 - term_11 * term_12)/delta
-    b = (term_12 - m * term_01)/N
+	# compute necessary terms
+	s_yx_sum = 0
 
-    s_yx_sum = 0
+	# more miscellaneous math
+	for j in range(0, N):
+		s_yx_sum += (arr_y[j] - b - m * arr_x[j]) ** 2
 
-    for j in range(0, N):
+	# more miscellaneous math
+	s_yx_squared = ((1/(N - 2))*(s_yx_sum))
 
-        s_yx_sum += (arr_y[j] - b - m * arr_x[j]) ** 2
+	# uncertainties
+	s_m = (N * s_yx_squared / delta) ** 0.5
+	s_b = (s_yx_squared * term_00 / delta) ** 0.5
 
-    s_yx_squared = ((1/(N - 2))*(s_yx_sum))
+	print("The slope is",m ,"with an uncertainty of", round(s_m, -int(floor(log10(abs(Decimal(s_m)))))))
+	print("The y-intercept is", b, "with an uncertainty of", round(s_b, -int(floor(log10(abs(Decimal(s_b)))))))
 
-    s_m = (N * s_yx_squared / delta) ** 0.5
+	return m
 
-    s_b = (s_yx_squared * term_00 / delta) ** 0.5
-
-    print("The slope is ",m ,"with an uncertainty of", s_m, "\n")
-    print("The y-intercept is ", b, "with an uncertainty of", s_b, "\n")
-
-lin_uncertainty(y_vec[epsilon_index_l: epsilon_index_u + 1], time_vec[epsilon_index_l: epsilon_index_u + 1])
+distance = 0.101
+time_seconds = distance / lin_uncertainty(y_vec[epsilon_index_l: epsilon_index_u + 1],
+							   time_vec[epsilon_index_l: epsilon_index_u + 1])
+time_minutes = time_seconds / 60
+print("The time taken for the ball to fall between the fiduciary lines is", -1*time_minutes, "minutes.")
