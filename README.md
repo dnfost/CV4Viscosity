@@ -10,6 +10,7 @@ If one encounters any issues with this code, report it directly on GitHub, or re
 <br/>
 **Breakdown.<br/>**
 This is one of the more long-winded programs that I've written, so I'm writing a basic description of what each section of code does, to better the understanding of the reader. <br/>
+<br/>
 This program begins with a series of import statements. Make sure that all necessary packages are installed on your system before attempting to run the program. <br/>
 <br/>
 The first thing that this code actually does is prompts the user to input a video path, then press a button and exit from the widget prompt. This uses the name of the video file from the provided video path and stores it for use in the actual image-tracking part of this program. The video then plays, as a means of checking if the video path provided was valid or not. <br/>
