@@ -1,6 +1,5 @@
 # import the necessary packages
 from tkinter import *
-from tkvideo import tkvideo
 import cv2
 import imutils
 import time
@@ -325,7 +324,7 @@ epsilon_index_u = min(range(len(time_vec)), key=lambda i: abs(time_vec[i]-upper)
 cropped_vel = vel_vec_y[epsilon_index_l: epsilon_index_u + 1]
 
 # sanity check for best fit
-print("The mean vertical velocity is", mean(cropped_vel), "with a standard deviation of", stdev(cropped_vel))
+# print("The mean vertical velocity is", mean(cropped_vel), "with a standard deviation of", stdev(cropped_vel))
 
 # compute the best fit line of the vertical displacement (which is what we care about) over the specified time interval
 def lin_uncertainty(arr_y, arr_x): # this works
@@ -367,13 +366,25 @@ def lin_uncertainty(arr_y, arr_x): # this works
 	s_m = (N * s_yx_squared / delta) ** 0.5
 	s_b = (s_yx_squared * term_00 / delta) ** 0.5
 
-	print("The slope is",m ,"with an uncertainty of", round(s_m, -int(floor(log10(abs(Decimal(s_m)))))))
-	print("The y-intercept is", b, "with an uncertainty of", round(s_b, -int(floor(log10(abs(Decimal(s_b)))))))
+	# sanity check, optional
+	# print("The slope is", round(m, abs(int(str((Decimal(s_m)))[str((Decimal(s_m))).rfind("e"):]))) ,
+	# 	  "with an uncertainty of", round(s_m, -int(floor(log10(abs(Decimal(s_m)))))))
+	# print("The y-intercept is", round(b, abs(int(str((Decimal(s_b)))[str((Decimal(s_b))).rfind("e"):]))),
+	# 	  "with an uncertainty of", round(s_b, -int(floor(log10(abs(Decimal(s_b)))))))
 
-	return m
+	return [round(m, abs(int(str((Decimal(s_m)))[str((Decimal(s_m))).rfind("e"):]))),
+			round(s_m, -int(floor(log10(abs(Decimal(s_m))))))]
 
-distance = 0.101
-time_seconds = distance / lin_uncertainty(y_vec[epsilon_index_l: epsilon_index_u + 1],
-							   time_vec[epsilon_index_l: epsilon_index_u + 1])
+# uncertainty calculations and propagations
+distance = -0.101
+distance_uncertainty = 0.001
+[m, s_m] = lin_uncertainty(y_vec[epsilon_index_l: epsilon_index_u + 1], time_vec[epsilon_index_l: epsilon_index_u + 1])
+time_seconds = distance / m
+time_seconds_uncertainty = ((1 / (m) * distance_uncertainty) ** 2 + (distance / (m ** 2) * s_m) ** 2) ** 0.5
+time_seconds_uncertainty = round(time_seconds_uncertainty, -int(floor(log10(abs(Decimal(time_seconds_uncertainty))))))
+time_minutes_uncertainty = round(time_seconds_uncertainty / 60, -int(floor(log10(abs(Decimal(time_seconds_uncertainty / 60))))))
 time_minutes = time_seconds / 60
-print("The time taken for the ball to fall between the fiduciary lines is", -1*time_minutes, "minutes.")
+time_minutes = round(time_minutes, -1*Decimal(str(time_minutes_uncertainty)).as_tuple().exponent)
+
+# final result ! :)
+print("The time taken for the ball to fall between the fiduciary lines is", time_minutes, "minutes, with an uncertainty of", time_minutes_uncertainty)
