@@ -22,7 +22,7 @@ Then, a csv file is made (or opened if it already exists), as a spot for the coo
 <br/>
 Upon completion of writing to the csv file, the file is opened again, and the coordinates of the center are used to compute the displacement and velocity of the ball, after conversion from pixels to meters. These values (horizontal and vertical displacement, horizontal and vertical velocity) are plotted onto a single figure. <br/>
 <br/>
-Informed by the graphs, a user can input a selected time interval, over which the mean and best-fit velocities, along with their associated uncertainties will be computed. <br/>
+Informed by the graphs, a user can input a selected time interval, over which the mean and best-fit velocities, along with their associated uncertainties will be computed. From the best-fit velocity, the time required for the ball to fall between the fiduciary lines is computed. <br/>
 <br/>
 **Contributor Information.**<br/>
 Daniel Foster, Summer Research Intern at Flow Control and Experimental Turbulence Lab at the University of Toronto Institute for Aerospace Studies. d.foster@mail.utoronto.ca <br/>
