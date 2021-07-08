@@ -7,110 +7,27 @@ import csv
 from matplotlib import pyplot as plt
 from math import log10, floor
 from decimal import Decimal
+from imutils.video import VideoStream
+import argparse
 
-# widget that takes in a video path for preview and analysis
-root = Tk()
-root.title("Video Selection and Preview")
+frame_rate = 30
 
-# get user input
-e = Entry(root, width=50)
-e.pack()
+ball_radius = 0.029
 
-# run the playVid function upon button press
-myButton = Button(root, text="Enter a video path.", command=lambda: playVid(e.get()))
-myButton.pack()
+colourLower = (1, 0, 0)
+colourUpper = (3, 255, 255)
 
-# shorten the filename, play the video
-def playVid(filename):
-	global filename_shortened
-	filename_shortened = filename[filename.rfind("\\") + 1:]
-
-	my_label = Label(root)
-	my_label.pack()
-
-root.mainloop()
-
-# widget that takes in a frame rate
-stem = Tk()
-stem.title("Input Frame Rate")
-
-# provide a default frame rate to streamline the process
-e = Entry(stem, width=50)
-e.insert(END, '30') # This is a default value
-e.pack()
-
-# run the getFPS function upon button press
-myButton = Button(stem, text="Enter a camera frame rate in fps.", command=lambda: getFPS(e.get()))
-myButton.pack()
-
-# convert the input string to a float
-def getFPS(fps):
-	global frame_rate
-	frame_rate = float(fps)
-
-stem.mainloop()
-
-# widget that takes in a ball radius
-branch = Tk()
-branch.title("Input Ball Radius")
-
-# provide a default ball radius to streamline the process
-e = Entry(branch, width=50)
-e.insert(END, '0.004745') # This is a default value
-ball_radius_uncertainty = 0.000005 # Check this
-e.pack()
-
-# run the function getRadius upon button press
-myButton = Button(branch, text="Enter a ball radius in m.", command=lambda: getRadius(e.get()))
-myButton.pack()
-
-# convert the input string to a float
-def getRadius(radius):
-	global ball_radius
-	ball_radius = float(radius)
-
-branch.mainloop()
-
-# widget that takes in a lower bound and upper bound for the HSV colour space
-twig = Tk()
-twig.title("Input HSV Colour Lower and Upper Bounds")
-
-# provide a default HSV space to streamline the process
-e = Entry(twig, width=50)
-e.insert(END, '10,0,0,130,175,110') # This is a default value
-e.pack()
-
-# run the getHSV function upon button press
-myButton = Button(twig, text="Enter HSV colour bounds, separated by commas.", command=lambda: getHSV(e.get()))
-myButton.pack()
-
-# define the lower and upper boundaries of the ball in the HSV color space
-# note that these values are in HSV, not BGR, can be found iteratively through experimentation
-
-# split the input string
-def getHSV(HSVs):
-	global colourLower, colourUpper
-	HSVs = HSVs.split(",")
-	colourLower = (float(HSVs[0]), float(HSVs[1]), float(HSVs[2]))
-	colourUpper = (float(HSVs[3]), float(HSVs[4]), float(HSVs[5]))
-
-twig.mainloop()
-
-vs = cv2.VideoCapture(filename_shortened)
+vs = VideoStream(src=1).start()
 # allow the camera or video file to warm up
 time.sleep(2.0)
 
 # create a csv file to store the coordinates of the center point
 with open('center_coordinates.csv', 'w', newline='') as file:
 	writer = csv.writer(file)
-	writer.writerow(['Frame Index', 'Position of Centroid'])
+	writer.writerow(['Frame Index', 'Position of Centroid', 'Position of Centroid', 'Radius'])
 
 	# initialize frame index
 	index = 0
-
-	# initialize average radius calculations
-	radius_to_avg = 0
-	radius_max = 0
 
 	# keep looping
 	while True:
@@ -119,15 +36,12 @@ with open('center_coordinates.csv', 'w', newline='') as file:
 		index += 1
 		# grab the current frame
 		frame = vs.read()
-
-		# handle the frame from VideoCapture or VideoStream
-		frame = frame[1]
 		# if we are viewing a video and we did not grab a frame, then we have reached the end of the video
 		if frame is None:
 			break
 		# resize the frame, blur it, and convert it to the HSV color space
-		frame = imutils.resize(frame, width=500)
-		blurred = cv2.GaussianBlur(frame, (11, 11), 0) # remove any high-frequency noise
+		# frame = imutils.resize(frame, width=500)
+		blurred = cv2.GaussianBlur(frame[139:941, 364:1556], (11, 11), 0) # remove any high-frequency noise
 		hsv = cv2.cvtColor(blurred, cv2.COLOR_BGR2HSV) # convert video frame from BGR to HSV
 		# construct a mask for the color "red", then perform a series of dilations and erosions to remove any small
 		# blobs left in the mask
@@ -149,31 +63,21 @@ with open('center_coordinates.csv', 'w', newline='') as file:
 			# only proceed if the radius meets a minimum size
 			if radius > 10:
 				# draw the circle and centroid on the frame, then update the list of tracked points
-				cv2.circle(frame, (int(x), int(y)), int(radius),
+				cv2.circle(frame[139:941, 364:1556], (int(x), int(y)), int(radius),
 					(0, 255, 255), 2)
-				cv2.circle(frame, center, 5, (0, 0, 255), -1)
-				# compute the average radius to use in conversion from pixels to meters
-				radius_to_avg += radius
-			if radius_max < radius:
-				radius_max = radius
+				cv2.circle(frame[139:941, 364:1556], center, 5, (0, 0, 255), -1)
 			# insert relevant information to the csv
-			writer.writerow([index, center[0], center[1]])
-		# compute the average radius
-		radius_avg = radius_to_avg / index # assumes frames are continuous
+			writer.writerow([index, center[0], center[1], radius])
 
 		# show the frame to our screen
-		cv2.imshow("Frame", frame)
+		cv2.imshow("Frame", frame[139:941, 364:1556])
 		key = cv2.waitKey(1) & 0xFF
 		# if the 'q' key is pressed, stop the loop
 		if key == ord("q"):
 			break
 
-vs.release()
 # close all windows
 cv2.destroyAllWindows()
-
-# convert pixels to m
-meters_per_pixel = ball_radius / radius_max
 
 # read the csv file
 with open('center_coordinates.csv') as csv_file:
@@ -183,15 +87,26 @@ with open('center_coordinates.csv') as csv_file:
 	x_vec = []
 	y_vec = []
 
-	# convert from frames -> seconds and pixels -> meters
+	# initialize average radius calculations
+	radius_to_avg = 0
+
 	for row in csv_reader:
 		if line_count == 0:
 			pass
 		else:
+			radius_to_avg += float(row[3])
 			time_vec.append(line_count / frame_rate)
-			x_vec.append(meters_per_pixel * float(row[1])) # grabs only horizontal motion
-			y_vec.append(meters_per_pixel * float(row[2])) # grabs only vertical motion
+			x_vec.append(float(row[1])) # grabs only horizontal motion
+			y_vec.append(float(row[2])) # grabs only vertical motion
 		line_count += 1
+
+	radius_avg = radius_to_avg / line_count
+	meters_per_pixel = ball_radius / radius_avg
+
+	# convert from frames -> seconds and pixels -> meters
+	for index in range(0, len(time_vec)):
+		x_vec[index] = x_vec[index] * meters_per_pixel
+		y_vec[index] = y_vec[index] * meters_per_pixel
 
 	# initialize difference vector for calculation of velocity
 	ds_vec_y = []
