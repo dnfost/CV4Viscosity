@@ -1,0 +1,40 @@
+# import the necessary packages
+from tkinter import *
+import cv2
+import time
+from math import floor
+from imutils.video import VideoStream
+
+vs = VideoStream(src=1).start()
+# allow the camera or video file to warm up
+time.sleep(2.0)
+
+while True:
+
+    frame = vs.read()
+
+    # handle the frame from VideoCapture or VideoStream
+    frame = frame
+    # if we are viewing a video and we did not grab a frame, then we have reached the end of the video
+    if frame is None:
+        break
+
+    height = frame.shape[0]
+    width = frame.shape[1]
+
+    x1_1, x2_1 = 0, width
+    y1_1, y2_1 = floor(height * 2 / 39.2) + 1, floor(height * 2 / 39.2) + 1
+
+    x1_2, x2_2 = 0, width
+    y1_2, y2_2 = floor(height * 27.2 / 39.2) + 1, floor(height * 27.2 / 39.2) + 1
+
+    line_thickness = 2
+    cv2.line(frame, (x1_1, y1_1), (x2_1, y2_1), (0, 255, 0), thickness=line_thickness)
+    cv2.line(frame, (x1_2, y1_2), (x2_2, y2_2), (0, 255, 0), thickness=line_thickness)
+
+    # show the frame to our screen
+    cv2.imshow("Align the bottom pair of fiduciary lines", frame)
+    key = cv2.waitKey(1) & 0xFF
+    # if the 'q' key is pressed, stop the loop
+    if key == ord("q"):
+        break
