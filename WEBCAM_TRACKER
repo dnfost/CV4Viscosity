@@ -9,6 +9,42 @@ from math import log10, floor
 from decimal import Decimal
 from imutils.video import VideoStream
 
+vs = VideoStream(src=1).start()
+# allow the camera or video file to warm up
+time.sleep(2.0)
+
+while True:
+
+    frame = vs.read()
+
+    # handle the frame from VideoCapture or VideoStream
+    frame = frame
+    # if we are viewing a video and we did not grab a frame, then we have reached the end of the video
+    if frame is None:
+        break
+
+    height = frame.shape[0]
+    width = frame.shape[1]
+
+    x1_1, x2_1 = 0, width
+    y1_1, y2_1 = floor(height * 2 / 39.2) + 1, floor(height * 2 / 39.2) + 1
+
+    x1_2, x2_2 = 0, width
+    y1_2, y2_2 = floor(height * 27.2 / 39.2) + 1, floor(height * 27.2 / 39.2) + 1
+
+    line_thickness = 2
+    cv2.line(frame, (x1_1, y1_1), (x2_1, y2_1), (0, 255, 0), thickness=line_thickness)
+    cv2.line(frame, (x1_2, y1_2), (x2_2, y2_2), (0, 255, 0), thickness=line_thickness)
+
+    # show the frame to our screen
+    cv2.imshow("Align the bottom pair of fiduciary lines", frame)
+    key = cv2.waitKey(1) & 0xFF
+    # if the 'q' key is pressed, stop the loop
+    if key == ord("q"):
+        break
+
+cv2.destroyAllWindows()
+
 # widget that takes in a frame rate
 stem = Tk()
 stem.title("Input Frame Rate")
@@ -130,6 +166,8 @@ with open('center_coordinates.csv') as csv_file:
     line_count = 0
     time_vec = []
     x_vec = []
+    x_vec_uncertainty = []
+    y_vec_uncertainty = []
     y_vec = []
 
     # convert from frames -> seconds and pixels -> meters
@@ -139,8 +177,21 @@ with open('center_coordinates.csv') as csv_file:
         else:
             time_vec.append(line_count / frame_rate)
             x_vec.append(meters_per_pixel * float(row[1])) # grabs only horizontal motion
+            x_vec_uncertainty.append(meters_per_pixel_uncertainty * float(row[1]))
+            y_vec_uncertainty.append(meters_per_pixel_uncertainty * float(row[2]))
             y_vec.append(meters_per_pixel * float(row[2])) # grabs only vertical motion
         line_count += 1
+
+    x_vec_plus = []
+    x_vec_minus = []
+    y_vec_plus = []
+    y_vec_minus = []
+
+    for element in range(0, len(x_vec)):
+        x_vec_plus.append(x_vec[element] + x_vec_uncertainty[element])
+        x_vec_minus.append(x_vec[element] - x_vec_uncertainty[element])
+        y_vec_plus.append(y_vec[element] + y_vec_uncertainty[element])
+        y_vec_minus.append(y_vec[element] - y_vec_uncertainty[element])
 
     # initialize difference vector for calculation of velocity
     ds_vec_y = []
@@ -188,7 +239,7 @@ with open('center_coordinates.csv') as csv_file:
 
     # plot position against time
     plot2 = plt.subplot(223)
-    plt.plot(time_vec, x_vec)
+    plt.plot(time_vec, x_vec, time_vec, x_vec_plus, time_vec, x_vec_minus)
     plt.title('Horizontal Position Against Time', fontsize=fontsize)
     plt.xlabel('Time [s]', fontsize=fontsize)
     plt.ylabel('Horizontal Position [m]', fontsize=fontsize)
@@ -198,10 +249,12 @@ with open('center_coordinates.csv') as csv_file:
     # plot position against time, have to reflect about x axis due to opencv coordinate system
     for j in range (0, len(y_vec)):
         y_vec[j] = -1*y_vec[j]
+        y_vec_plus[j] = -1*y_vec_plus[j]
+        y_vec_minus[j] = -1*y_vec_minus[j]
 
     # plot position against time
     plot2 = plt.subplot(224)
-    plt.plot(time_vec, y_vec)
+    plt.plot(time_vec, y_vec, time_vec, y_vec_plus, time_vec, y_vec_minus)
     plt.title('Vertical Position Against Time', fontsize=fontsize)
     plt.xlabel('Time [s]', fontsize=fontsize)
     plt.ylabel('Vertical Position [m]', fontsize=fontsize)
@@ -233,6 +286,31 @@ myButton = Button(trunk,
 myButton.pack()
 
 trunk.mainloop()
+
+# compute the mean element of an array
+def mean(arr):
+    mean = 0.0
+    # loop across all elements
+    for datum in arr:
+        mean += datum/len(arr)
+
+    return mean
+
+# compute the variance of an array of data points
+def variance(arr):
+    avg = mean(arr)
+    variance = 0.0
+    # variance formula
+    for datum in arr:
+        variance += (datum - avg)**2/(len(arr)-1) # sum of squares (of differences between our average and our point(s))
+
+    return variance
+
+# compute the standard deviation of an array of data points
+def stdev(arr):
+    stdev = (variance(arr))**0.5 # variance is s^2, standard deviation is s
+
+    return stdev
 
 # set arbitrarily large values of epsilon, so that a closest number is almost always found
 epsilon_l = 100000
@@ -303,12 +381,26 @@ def lin_uncertainty(arr_y, arr_x): # this works
 distance = -0.101
 distance_uncertainty = 0.001
 [m, s_m] = lin_uncertainty(y_vec[epsilon_index_l: epsilon_index_u + 1], time_vec[epsilon_index_l: epsilon_index_u + 1])
+[m_minus, s_m_minus] = lin_uncertainty(y_vec_minus[epsilon_index_l: epsilon_index_u + 1], time_vec[epsilon_index_l: epsilon_index_u + 1])
+[m_plus, s_m_plus] = lin_uncertainty(y_vec_plus[epsilon_index_l: epsilon_index_u + 1], time_vec[epsilon_index_l: epsilon_index_u + 1])
 time_seconds = distance / m
+time_seconds_plus = distance / m_plus
+time_seconds_minus = distance / m_minus
 time_seconds_uncertainty = ((1 / (m) * distance_uncertainty) ** 2 + (distance / (m ** 2) * s_m) ** 2) ** 0.5
 time_seconds_uncertainty = round(time_seconds_uncertainty, -int(floor(log10(abs(Decimal(time_seconds_uncertainty))))))
 time_minutes_uncertainty = round(time_seconds_uncertainty / 60, -int(floor(log10(abs(Decimal(time_seconds_uncertainty / 60))))))
+time_seconds_uncertainty_plus = ((1 / (m_plus) * distance_uncertainty) ** 2 + (distance / (m_plus ** 2) * s_m_plus) ** 2) ** 0.5
+time_seconds_uncertainty_plus = round(time_seconds_uncertainty_plus, -int(floor(log10(abs(Decimal(time_seconds_uncertainty_plus))))))
+time_minutes_uncertainty_plus = round(time_seconds_uncertainty_plus / 60, -int(floor(log10(abs(Decimal(time_seconds_uncertainty_plus / 60))))))
+time_seconds_uncertainty_minus = ((1 / (m_minus) * distance_uncertainty) ** 2 + (distance / (m_minus ** 2) * s_m_minus) ** 2) ** 0.5
+time_seconds_uncertainty_minus = round(time_seconds_uncertainty_minus, -int(floor(log10(abs(Decimal(time_seconds_uncertainty_minus))))))
+time_minutes_uncertainty_minus = round(time_seconds_uncertainty_minus / 60, -int(floor(log10(abs(Decimal(time_seconds_uncertainty_minus / 60))))))
 time_minutes = time_seconds / 60
+time_minutes_plus = time_seconds_plus / 60
+time_minutes_minus = time_seconds_minus / 60
 time_minutes = round(time_minutes, -1*Decimal(str(time_minutes_uncertainty)).as_tuple().exponent)
+time_minutes_plus = round(time_minutes_plus, -1*Decimal(str(time_minutes_uncertainty_plus)).as_tuple().exponent)
+time_minutes_minus = round(time_minutes_minus, -1*Decimal(str(time_minutes_uncertainty_minus)).as_tuple().exponent)
 
 # final result ! :)
-print("The time taken for the ball to fall between the fiduciary lines is", time_minutes, "minutes, with an uncertainty of", time_minutes_uncertainty)
+print("The time taken for the ball to fall between the fiduciary lines is", time_minutes, ". Accounting for uncertainty, the time will be between", time_minutes_plus, "and", time_minutes_minus)
